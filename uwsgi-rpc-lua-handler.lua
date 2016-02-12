@@ -12,9 +12,10 @@ T._meta = { __index = meta_index; };
 T.Error = {
 	OK = 0;
 	NOT_FULL = 1;
-	HANDLER_ERROR = 2;
-	BAD_MDF1 = 3;
-	BAD_MDF2 = 4;
+	HANDLER = 2;
+	BAD_MF1 = 3;
+	BAD_MF2 = 4;
+	MALFORMED = 5;
 };
 
 T.New = function(self, handler)
@@ -70,29 +71,29 @@ meta_index.Call = function(self, str, ignore_modif)
 	str = tostring(str);
 
 	if (not str or #str < 4) then
-		return err.NOT_FULL;
+		return err.MALFORMED;
 	end
 
 	if not ignore_modif then
 		if to8(str, 1) ~= MODIF1 then
-			return err.BAD_MDF1;
+			return err.BAD_MF1;
 		end
 
-		if to8(str, 3) ~= 0 then
-			return err.BAD_MDF2;
+		if to8(str, 4) ~= 0 then
+			return err.BAD_MF2;
 		end
 	end
 
 	local pkg_size = to16le(str, 2);
 
 	if (#str - 4 < pkg_size) then
-		return err.NOT_FULL;
+		return err.NOT_FULL, pkg_size + 4;
 	end
 
 	local res, ok = self:_rpc_handler(parse(str, 5, pkg_size + 4));
 
 	if not ok then
-		return err.HANDLER_ERROR, nil, res;
+		return err.HANDLER, res;
 	end
 
 	return self:_pack_result(res);

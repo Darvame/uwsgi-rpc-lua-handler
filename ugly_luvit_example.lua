@@ -1,7 +1,8 @@
 local rpc = require "uwsgi-rpc-lua-handler";
 local uv = require "uv";
 
-local c_again = rpc.Error.NOT_FULL;
+local c_again = rpc.Error.MALFORMED;
+local c_nfull = rpc.Error.NOT_FULL;
 local c_ok = rpc.Error.OK;
 
 local rpc_func = {};
@@ -15,6 +16,9 @@ server:listen(128, function(err)
 	assert(not err, err);
 	local client = uv.new_tcp();
 	local data = "";
+	local dtable;
+	local dlen;
+	local dneed;
 
 	local on_shutdown = function()
 		if not client:is_closing() then
@@ -35,13 +39,35 @@ server:listen(128, function(err)
 			return;
 		end
 
-		data = data .. chunk;
+		local code, header, body;
 
-		local code, header, body = rpc_handler:Call(data);
+		if dtable then
+
+			dlen = dlen + #chunk;
+			dtable[#dtable + 1] = chunk;
+
+			if dlen < dneed then
+					return;
+			end
+
+			code, header, body = rpc_handler:Call(table.concat(dtable));
+		else
+
+			data = data .. chunk;
+
+			code, header, body = rpc_handler:Call(data);
+		end
 
 		if code ~= c_ok then
 			if code == c_again then
 				return; -- again, wait for next chunk
+			end
+
+			if code == c_nfull then
+				dtable = {data};
+				dlen = #data;
+				bneed = header;
+				return;
 			end
 
 			client:shutdown(on_shutdown);
