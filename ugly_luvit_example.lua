@@ -66,7 +66,7 @@ server:listen(128, function(err)
 			if code == c_nfull then
 				dtable = {data};
 				dlen = #data;
-				bneed = header;
+				dneed = header;
 				return;
 			end
 
